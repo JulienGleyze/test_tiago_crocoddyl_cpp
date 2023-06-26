@@ -159,7 +159,10 @@ int main(int argc, char** argv) {
       boost::make_shared<CostModelSum>(costs);
 
   // Adding the hand-placement cost
-  Eigen::Vector<double, 6> w_hand(1, 1, 1, 0.0001, 0.0001, 0.0001);
+  Eigen::VectorXd w_hand(6);
+
+  w_hand << Eigen::VectorXd::Constant(3, 1),
+      Eigen::VectorXd::Constant(3, 0.0001);
 
   Eigen::Vector3d target(0.6, -0.1, 1);
 
@@ -194,7 +197,7 @@ int main(int argc, char** argv) {
       Eigen::VectorXd::Constant(state_nv - 6, 0.01),
       Eigen::VectorXd::Constant(state_nv, 10.0);
 
-  ActivationModelWeightedQuad activation_xreg(w_x.array().pow(2));
+  ActivationModelWeightedQuad activation_xreg(w_x.cwiseAbs2());
 
   boost::shared_ptr<ActivationModelWeightedQuad> shrd_act_xreg =
       boost::make_shared<ActivationModelWeightedQuad>(activation_xreg);
@@ -211,6 +214,7 @@ int main(int argc, char** argv) {
 
   CostModelResidual x_reg_cost(shrd_state, shrd_act_xreg,
                                shrd_res_mod_state_xreg);
+
   CostModelResidual u_reg_cost(shrd_state, shrd_res_mod_ctrl);
 
   boost::shared_ptr<CostModelResidual> shrd_x_reg_cost =
