@@ -164,13 +164,13 @@ int main(int argc, char** argv) {
   w_hand << Eigen::VectorXd::Constant(3, 1),
       Eigen::VectorXd::Constant(3, 0.0001);
 
-  Eigen::Vector3d target(0.6, -0.1, 1);
+  Eigen::Vector3d target(0.6, -0.3, 1.5);
 
   std::cout << "target: " << target.transpose() << std::endl;
 
   SE3 lh_Mref(Eigen::Matrix3d::Identity(), target);
 
-  ActivationModelWeightedQuad activation_hand(w_hand.array().pow(2));
+  ActivationModelWeightedQuad activation_hand(w_hand.cwiseAbs2());
 
   boost::shared_ptr<ActivationModelWeightedQuad> shrd_act_hand =
       boost::make_shared<ActivationModelWeightedQuad>(activation_hand);
@@ -311,7 +311,7 @@ int main(int argc, char** argv) {
 
   fddp.setCallbacks(shrd_callbacks);
 
-  std::cout << "Problem solved:" << fddp.solve() << std::endl;
+  std::cout << "Problem solved:" << std::endl << fddp.solve() << std::endl;
   std::cout << "Number of iterations :" << fddp.get_iter() << std::endl;
   std::cout << "Total cost :" << fddp.get_cost() << std::endl;
   std::cout << "Gradient norm :" << fddp.stoppingCriteria() << std::endl;
