@@ -24,22 +24,13 @@
 #include "pinocchio/parsers/urdf.hpp"
 #include "pinocchio/spatial/se3-tpl.hpp"
 
-// PINOCCHIO_MODEL_DIR is defined by the CMake but you can define your own
-// directory here.
-#ifndef PINOCCHIO_MODEL_DIR
-#define PINOCCHIO_MODEL_DIR "/opt/openrobots/include"
-#endif
-
 int main(int argc, char** argv) {
   using namespace pinocchio;
   using namespace crocoddyl;
 
-  const std::string urdf_filename =
-      (argc <= 1)
-          ? PINOCCHIO_MODEL_DIR + std::string(
-                                      "/example-robot-data/robots/"
-                                      "tiago_description/robots/tiago.urdf")
-          : argv[1];
+  const std::string urdf_filename = std::string(
+      "/opt/openrobots/include/example-robot-data/robots/"
+      "tiago_description/robots/tiago.urdf");
 
   // Load the urdf model
   Model model;
@@ -253,14 +244,6 @@ int main(int argc, char** argv) {
 
   std::cout << "costs: " << costs << std::endl;
 
-  // Adding the friction cone penalization
-  Eigen::Matrix3d nsurf = Eigen::Matrix3d::Identity();
-  double mu = 0.7;
-  FrictionCone cone(nsurf, mu, 4, false);
-
-  ActivationModelQuadraticBarrier activation_friction(
-      ActivationBounds(cone.get_lb(), cone.get_ub()));
-
   // Creating the action rmodel
   DifferentialActionModelContactFwdDynamics dmodel(shrd_state, shrd_actuation,
                                                    shrd_contacts, shrd_costs);
@@ -279,12 +262,12 @@ int main(int argc, char** argv) {
 
   running_seqs.push_back(IntegratedActionModelEuler(shrd_dmodel, 0.0));
 
-  std::vector<boost::shared_ptr<ActionModelAbstract>> shrd_running_seqs(
-      N, boost::make_shared<IntegratedActionModelEuler>(
-             IntegratedActionModelEuler(shrd_dmodel, DT)));
+  boost::shared_ptr<IntegratedActionModelEuler> shrd_action_model =
+      boost::make_shared<IntegratedActionModelEuler>(
+          IntegratedActionModelEuler(shrd_dmodel, DT));
 
-  std::cout << "Added  " << shrd_running_seqs.size() << " running seqs"
-            << std::endl;
+  std::vector<boost::shared_ptr<ActionModelAbstract>> shrd_running_seqs(
+      N, shrd_action_model);
 
   IntegratedActionModelEuler mterm =
       IntegratedActionModelEuler(shrd_dmodel, 0.0);
@@ -297,6 +280,8 @@ int main(int argc, char** argv) {
   ShootingProblem problem(x0, shrd_running_seqs, shrd_mterm);
 
   std::cout << "Problem: " << problem << std::endl;
+
+  std::cout << "Initial state: " << problem.get_x0().transpose() << std::endl;
 
   boost::shared_ptr<ShootingProblem> shrd_problem =
       boost::make_shared<ShootingProblem>(problem);
