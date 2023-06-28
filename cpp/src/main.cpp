@@ -295,12 +295,14 @@ int main(int argc, char** argv) {
   std::cout << "Initial state: " << problem.get_x0().transpose() << std::endl;
 
   boost::shared_ptr<ShootingProblem> shrd_problem =
-      boost::make_shared<ShootingProblem>(problem);
+      boost::make_shared<ShootingProblem>(x0, shrd_running_seqs, shrd_mterm);
+
+  std::cout << "nu_max: " << problem.get_nu_max() << std::endl;
 
   SolverFDDP fddp(shrd_problem);
 
   // Adding callbacks to inspect the evolution of the solver (logs are
-  //     printed in the terminal)
+  //  printed in the terminal)
   CallbackVerbose callback_verbose;
   std::vector<boost::shared_ptr<CallbackAbstract>> shrd_callbacks = {
       boost::make_shared<CallbackVerbose>(callback_verbose)};
