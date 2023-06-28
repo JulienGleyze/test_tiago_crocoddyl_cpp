@@ -172,8 +172,8 @@ int main(int argc, char** argv) {
 
   // Residual for the hand-placement cost
 
-  ResidualModelFramePlacement residual_model_frame_placement(shrd_state, lh_id,
-                                                             lh_Mref);
+  ResidualModelFramePlacement residual_model_frame_placement(
+      shrd_state, lh_id, lh_Mref, actuation_nu);
 
   boost::shared_ptr<ResidualModelFramePlacement> shrd_res_mod_frm_plmt =
       boost::make_shared<ResidualModelFramePlacement>(
@@ -199,9 +199,6 @@ int main(int argc, char** argv) {
 
   ActivationModelWeightedQuad activation_xreg(w_x.cwiseAbs2());
 
-  std::cout << "Activation x_reg weights"
-            << activation_xreg.get_weights().transpose() << std::endl;
-
   boost::shared_ptr<ActivationModelWeightedQuad> shrd_act_xreg =
       boost::make_shared<ActivationModelWeightedQuad>(activation_xreg);
 
@@ -210,6 +207,7 @@ int main(int argc, char** argv) {
 
   boost::shared_ptr<ResidualModelState> shrd_res_mod_state_xreg =
       boost::make_shared<ResidualModelState>(residual_model_state_xreg);
+
   // Control regularization residual
   ResidualModelControl residual_model_control(shrd_state, actuation_nu);
 
@@ -313,4 +311,6 @@ int main(int argc, char** argv) {
   std::cout << "Number of iterations :" << fddp.get_iter() << std::endl;
   std::cout << "Total cost :" << fddp.get_cost() << std::endl;
   std::cout << "Gradient norm :" << fddp.stoppingCriteria() << std::endl;
+  std::cout << "Us[0] :" << fddp.get_us()[0].transpose() << std::endl;
+  std::cout << "k[0] :" << fddp.get_k()[0].transpose() << std::endl;
 }
