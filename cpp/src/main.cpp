@@ -122,31 +122,31 @@ int main(int argc, char** argv) {
 
   // Define the robot's state and actuation
 
-  StateMultibody state(shrd_rmodel);
+  // StateMultibody state(shrd_rmodel);
 
   boost::shared_ptr<StateMultibody> shrd_state =
-      boost::make_shared<StateMultibody>(state);
+      boost::make_shared<StateMultibody>(shrd_rmodel);
 
-  ActuationModelFull actuation(shrd_state);
-
-  actuation.print(std::cout);
+  // ActuationModelFull actuation(shrd_state);
 
   boost::shared_ptr<ActuationModelFull> shrd_actuation =
-      boost::make_shared<ActuationModelFull>(actuation);
+      boost::make_shared<ActuationModelFull>(shrd_state);
 
-  const size_t actuation_nu = actuation.get_nu();
+  shrd_actuation->print(std::cout);
+
+  const size_t actuation_nu = shrd_actuation->get_nu();
 
   // Creating a double-support contact (feet support)
-  ContactModelMultiple contacts(shrd_state, actuation_nu);
+  // ContactModelMultiple contacts(shrd_state, actuation_nu);
 
   boost::shared_ptr<ContactModelMultiple> shrd_contacts =
-      boost::make_shared<ContactModelMultiple>(contacts);
+      boost::make_shared<ContactModelMultiple>(shrd_state, actuation_nu);
 
   // Define the cost sum (cost manager)
-  CostModelSum costs(shrd_state, actuation_nu);
+  // CostModelSum costs(shrd_state, actuation_nu);
 
   boost::shared_ptr<CostModelSum> shrd_costs =
-      boost::make_shared<CostModelSum>(costs);
+      boost::make_shared<CostModelSum>(shrd_state, actuation_nu);
 
   // Adding the hand-placement cost
   Eigen::VectorXd w_hand(6);
@@ -162,34 +162,36 @@ int main(int argc, char** argv) {
 
   // Activation for the hand-placement cost
 
-  ActivationModelWeightedQuad activation_hand(w_hand.cwiseAbs2());
+  // ActivationModelWeightedQuad activation_hand(w_hand.cwiseAbs2());
+
+  boost::shared_ptr<ActivationModelWeightedQuad> shrd_activ_hand =
+      boost::make_shared<ActivationModelWeightedQuad>(w_hand.cwiseAbs2());
 
   std::cout << "Activation hand weights"
-            << activation_hand.get_weights().transpose() << std::endl;
-
-  boost::shared_ptr<ActivationModelWeightedQuad> shrd_act_hand =
-      boost::make_shared<ActivationModelWeightedQuad>(activation_hand);
+            << shrd_activ_hand->get_weights().transpose() << std::endl;
 
   // Residual for the hand-placement cost
 
-  ResidualModelFramePlacement residual_model_frame_placement(
-      shrd_state, lh_id, lh_Mref, actuation_nu);
+  //   ResidualModelFramePlacement residual_model_frame_placement(
+  //       shrd_state, lh_id, lh_Mref, actuation_nu);
 
   boost::shared_ptr<ResidualModelFramePlacement> shrd_res_mod_frm_plmt =
-      boost::make_shared<ResidualModelFramePlacement>(
-          residual_model_frame_placement);
+      boost::make_shared<ResidualModelFramePlacement>(shrd_state, lh_id,
+                                                      lh_Mref, actuation_nu);
 
-  CostModelResidual lh_cost(shrd_state, shrd_act_hand, shrd_res_mod_frm_plmt);
+  // CostModelResidual lh_cost(shrd_state, shrd_activ_hand,
+  // shrd_res_mod_frm_plmt);
 
   boost::shared_ptr<CostModelResidual> shrd_lh_cost =
-      boost::make_shared<CostModelResidual>(lh_cost);
+      boost::make_shared<CostModelResidual>(shrd_state, shrd_activ_hand,
+                                            shrd_res_mod_frm_plmt);
 
   // Adding the cost for the left hand
 
-  costs.addCost("lh_goal", shrd_lh_cost, 1e2);
+  shrd_costs->addCost("lh_goal", shrd_lh_cost, 1e2);
 
-  const size_t state_nv = state.get_nv();
-  const size_t state_nq = state.get_nq();
+  const size_t state_nv = shrd_state->get_nv();
+  const size_t state_nq = shrd_state->get_nq();
 
   // Adding state and control regularization terms
   Eigen::VectorXd w_x(2 * state_nv);
@@ -197,76 +199,80 @@ int main(int argc, char** argv) {
       Eigen::VectorXd::Constant(state_nv - 6, 0.01),
       Eigen::VectorXd::Constant(state_nv, 10.0);
 
-  ActivationModelWeightedQuad activation_xreg(w_x.cwiseAbs2());
+  // ActivationModelWeightedQuad activation_xreg(w_x.cwiseAbs2());
 
   boost::shared_ptr<ActivationModelWeightedQuad> shrd_act_xreg =
-      boost::make_shared<ActivationModelWeightedQuad>(activation_xreg);
+      boost::make_shared<ActivationModelWeightedQuad>(w_x.cwiseAbs2());
 
   // State regularization residual
-  ResidualModelState residual_model_state_xreg(shrd_state, x0, actuation_nu);
+  // ResidualModelState residual_model_state_xreg(shrd_state, x0, actuation_nu);
 
   boost::shared_ptr<ResidualModelState> shrd_res_mod_state_xreg =
-      boost::make_shared<ResidualModelState>(residual_model_state_xreg);
+      boost::make_shared<ResidualModelState>(shrd_state, x0, actuation_nu);
 
   // Control regularization residual
-  ResidualModelControl residual_model_control(shrd_state, actuation_nu);
+  // ResidualModelControl residual_model_control(shrd_state, actuation_nu);
 
   boost::shared_ptr<ResidualModelControl> shrd_res_mod_ctrl =
-      boost::make_shared<ResidualModelControl>(residual_model_control);
+      boost::make_shared<ResidualModelControl>(shrd_state, actuation_nu);
 
   // State regularization term
-  CostModelResidual x_reg_cost(shrd_state, shrd_act_xreg,
-                               shrd_res_mod_state_xreg);
+  //   CostModelResidual x_reg_cost(shrd_state, shrd_act_xreg,
+  //                                shrd_res_mod_state_xreg);
 
   // Control regularization term
-  CostModelResidual u_reg_cost(shrd_state, shrd_res_mod_ctrl);
+  //   CostModelResidual u_reg_cost(shrd_state, shrd_res_mod_ctrl);
 
   boost::shared_ptr<CostModelResidual> shrd_x_reg_cost =
-      boost::make_shared<CostModelResidual>(x_reg_cost);
+      boost::make_shared<CostModelResidual>(shrd_state, shrd_act_xreg,
+                                            shrd_res_mod_state_xreg);
 
   boost::shared_ptr<CostModelResidual> shrd_u_reg_cost =
-      boost::make_shared<CostModelResidual>(u_reg_cost);
+      boost::make_shared<CostModelResidual>(shrd_state, shrd_res_mod_ctrl);
 
   // Adding the regularization terms to the cost
-  costs.addCost("xReg", shrd_x_reg_cost, 1e-3);
-  costs.addCost("uReg", shrd_u_reg_cost, 1e-4);
+  shrd_costs->addCost("xReg", shrd_x_reg_cost, 0);  // 1e-3
+  shrd_costs->addCost("uReg", shrd_u_reg_cost, 0);  // 1e-4
 
   // Adding the state limits penalization
   Eigen::VectorXd x_lb(state_nq + state_nv);
-  x_lb << state.get_lb().segment(1, state_nv), state.get_lb().tail(state_nv);
+  x_lb << shrd_state->get_lb().segment(1, state_nv),
+      shrd_state->get_lb().tail(state_nv);
   Eigen::VectorXd x_ub(state_nq + state_nv);
-  x_ub << state.get_ub().segment(1, state_nv), state.get_lb().tail(state_nv);
+  x_ub << shrd_state->get_ub().segment(1, state_nv),
+      shrd_state->get_lb().tail(state_nv);
 
-  ActivationModelQuadraticBarrier activation_xbounds(
-      ActivationBounds(x_lb, x_ub));
+  //   ActivationModelQuadraticBarrier activation_xbounds(
+  //       ActivationBounds(x_lb, x_ub));
 
   boost::shared_ptr<ActivationModelQuadraticBarrier> shrd_act_xbounds =
-      boost::make_shared<ActivationModelQuadraticBarrier>(activation_xbounds);
+      boost::make_shared<ActivationModelQuadraticBarrier>(
+          ActivationBounds(x_lb, x_ub));
 
-  ResidualModelState residual_model_state_xbounds(shrd_state, 0 * x0,
-                                                  actuation_nu);
+  //   ResidualModelState residual_model_state_xbounds(shrd_state, 0 * x0,
+  //                                                   actuation_nu);
 
   boost::shared_ptr<ResidualModelState> shrd_res_mod_state_xbounds =
-      boost::make_shared<ResidualModelState>(residual_model_state_xbounds);
+      boost::make_shared<ResidualModelState>(shrd_state, 0 * x0, actuation_nu);
 
-  CostModelResidual x_bounds(shrd_state, shrd_act_xbounds,
-                             shrd_res_mod_state_xbounds);
+  //   CostModelResidual x_bounds(shrd_state, shrd_act_xbounds,
+  //                              shrd_res_mod_state_xbounds);
 
   boost::shared_ptr<CostModelResidual> shrd_x_bounds =
-      boost::make_shared<CostModelResidual>(x_bounds);
+      boost::make_shared<CostModelResidual>(shrd_state, shrd_act_xbounds,
+                                            shrd_res_mod_state_xbounds);
 
-  costs.addCost("xBounds", shrd_x_bounds, 1.0);
-
-  std::cout << "costs: " << costs << std::endl;
+  shrd_costs->addCost("xBounds", shrd_x_bounds, 0);  // 1
 
   // Creating the action rmodel
-  DifferentialActionModelContactFwdDynamics dmodel(shrd_state, shrd_actuation,
-                                                   shrd_contacts, shrd_costs);
-
-  std::cout << "Action model: " << dmodel << std::endl;
+  //   DifferentialActionModelContactFwdDynamics dmodel(shrd_state,
+  //   shrd_actuation,
+  //                                                    shrd_contacts,
+  //                                                    shrd_costs);
 
   boost::shared_ptr<DifferentialActionModelContactFwdDynamics> shrd_dmodel =
-      boost::make_shared<DifferentialActionModelContactFwdDynamics>(dmodel);
+      boost::make_shared<DifferentialActionModelContactFwdDynamics>(
+          shrd_state, shrd_actuation, shrd_contacts, shrd_costs);
 
   double DT = 5e-2;
   const int N = 20;
@@ -274,30 +280,29 @@ int main(int argc, char** argv) {
   // Creating a running rmodel for the target
 
   boost::shared_ptr<IntegratedActionModelEuler> shrd_action_model =
-      boost::make_shared<IntegratedActionModelEuler>(
-          IntegratedActionModelEuler(shrd_dmodel, DT));
+      boost::make_shared<IntegratedActionModelEuler>(shrd_dmodel, DT);
 
   std::vector<boost::shared_ptr<ActionModelAbstract>> shrd_running_seqs(
       N, shrd_action_model);
 
-  IntegratedActionModelEuler mterm =
-      IntegratedActionModelEuler(shrd_dmodel, 0.0);
+  //   IntegratedActionModelEuler mterm =
+  //       IntegratedActionModelEuler(shrd_dmodel, 0.0);
 
   boost::shared_ptr<IntegratedActionModelEuler> shrd_mterm =
-      boost::make_shared<IntegratedActionModelEuler>(mterm);
+      boost::make_shared<IntegratedActionModelEuler>(shrd_dmodel, 0.0);
 
   // Creating the shooting problem and the FDDP solver
 
-  ShootingProblem problem(x0, shrd_running_seqs, shrd_mterm);
-
-  std::cout << "Problem: " << problem << std::endl;
-
-  std::cout << "Initial state: " << problem.get_x0().transpose() << std::endl;
+  // ShootingProblem problem(x0, shrd_running_seqs, shrd_mterm);
 
   boost::shared_ptr<ShootingProblem> shrd_problem =
       boost::make_shared<ShootingProblem>(x0, shrd_running_seqs, shrd_mterm);
 
-  std::cout << "nu_max: " << problem.get_nu_max() << std::endl;
+  std::cout << "Costs: " << *shrd_costs << std::endl;
+  std::cout << "Problem: " << *shrd_problem << std::endl;
+
+  std::cout << "Initial state: " << shrd_problem->get_x0().transpose()
+            << std::endl;
 
   SolverFDDP fddp(shrd_problem);
 
