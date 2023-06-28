@@ -189,6 +189,7 @@ int main(int argc, char** argv) {
   costs.addCost("lh_goal", shrd_lh_cost, 1e2);
 
   const size_t state_nv = state.get_nv();
+  const size_t state_nq = state.get_nq();
 
   // Adding state and control regularization terms
   Eigen::VectorXd w_x(2 * state_nv);
@@ -204,12 +205,12 @@ int main(int argc, char** argv) {
   boost::shared_ptr<ActivationModelWeightedQuad> shrd_act_xreg =
       boost::make_shared<ActivationModelWeightedQuad>(activation_xreg);
 
-  // State regularization
+  // State regularization residual
   ResidualModelState residual_model_state_xreg(shrd_state, x0, actuation_nu);
 
   boost::shared_ptr<ResidualModelState> shrd_res_mod_state_xreg =
       boost::make_shared<ResidualModelState>(residual_model_state_xreg);
-  // Control regularization
+  // Control regularization residual
   ResidualModelControl residual_model_control(shrd_state, actuation_nu);
 
   boost::shared_ptr<ResidualModelControl> shrd_res_mod_ctrl =
@@ -233,10 +234,10 @@ int main(int argc, char** argv) {
   costs.addCost("uReg", shrd_u_reg_cost, 1e-4);
 
   // Adding the state limits penalization
-  Eigen::VectorXd x_lb(2 * state_nv);
-  x_lb << state.get_lb();
-  Eigen::VectorXd x_ub(2 * state_nv);
-  x_ub << state.get_ub();
+  Eigen::VectorXd x_lb(state_nq + state_nv);
+  x_lb << state.get_lb().segment(1, state_nv), state.get_lb().tail(state_nv);
+  Eigen::VectorXd x_ub(state_nq + state_nv);
+  x_ub << state.get_ub().segment(1, state_nv), state.get_lb().tail(state_nv);
 
   ActivationModelQuadraticBarrier activation_xbounds(
       ActivationBounds(x_lb, x_ub));
